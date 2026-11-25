@@ -12,7 +12,7 @@ from model.dataloader import get_batch
 from model.loss import cross_entropy_loss
 from model.optimiser import AdamW
 from model.scheduler import cosine_lr
-from model.transformer import TransformerLM
+from model.transformer import PostNormTransformerLM, TransformerLM
 
 
 class TrainingConfig(BaseModel):
@@ -118,7 +118,7 @@ def train(args: TrainingConfig):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    project = "assignment-1"
+    project = "assignment-1-postnorm"
 
     data = np.memmap(
         args.data_path,
@@ -126,7 +126,7 @@ def train(args: TrainingConfig):
         dtype=np.uint16,
     )
 
-    model = TransformerLM(
+    model = PostNormTransformerLM(
         args.vocab_size,
         args.context_length,
         args.num_layers,
@@ -284,7 +284,7 @@ def train(args: TrainingConfig):
                             model,
                             optimiser,
                             global_step,
-                            "transformer_assignment_1.pt",
+                            f"{project}-transformer_assignment_1.pt",
                         )
 
                         train_bar.write(
@@ -310,7 +310,7 @@ def train(args: TrainingConfig):
         model,
         optimiser,
         global_step,
-        "transformer_assignment_1_final.pt",
+        f"{project}-transformer_assignment_1_final.pt",
     )
 
 

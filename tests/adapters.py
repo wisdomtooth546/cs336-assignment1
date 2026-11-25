@@ -21,7 +21,7 @@ from torch import Tensor
 from model.layers.position import RoPE
 from model.optimiser import Adamw
 from model.scheduler import cosine_lr
-from model.transformer import TransformerBlock, TransformerLM
+from model.transformer import PreNormTransformerBlock, TransformerLM
 from model.loss import cross_entropy_loss
 
 
@@ -335,7 +335,7 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    transformer_block = TransformerBlock(
+    transformer_block = PreNormTransformerBlock(
         d_model=d_model,
         num_heads=num_heads,
         d_ff=d_ff,
