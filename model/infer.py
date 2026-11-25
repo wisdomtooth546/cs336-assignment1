@@ -3,6 +3,7 @@ import torch
 from jaxtyping import Float
 from torch import nn
 
+from model.checkpoint import load_checkpoint
 from model.layers.activations import softmax
 from pydantic import BaseModel
 
@@ -75,6 +76,8 @@ def infer(
                 temperature=args.temperature,
                 top_p=args.top_p
             )
+            if next_token == 0:
+                break
             x = torch.concat([x, next_token], dim=-1)
 
     return tokenizer.decode(x[0].tolist())
@@ -95,8 +98,7 @@ if __name__ == "__main__":
         num_heads=16,
         num_layers=4,
         epochs=200,
-        save_interval=10,
-        resume_path="transformer_mini.pt"
+        resume_path="transformer_assignment_1.pt"
     )
     model = TransformerLM(
         args.vocab_size,
@@ -116,15 +118,20 @@ if __name__ == "__main__":
         betas=(args.beta1, args.beta2),
         eps=args.eps
     )
-    infer_args = InferParams(
-        max_tokens=100
+    load_checkpoint(
+        "/root/projects/assignment1-basics/transformer_assignment_1.pt",
+        model,
+        optimiser
     )
-    prompt = "Once upon a time, there was a little girl named Sue."
+    infer_args = InferParams(
+        max_tokens=256 
+    )
+    prompt = "Once upon a time,"
     y = infer(
         model,
         tokenizer,
         prompt,
         infer_args,
-        device="mps"
+        device="cuda"
     )
     print(y)

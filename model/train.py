@@ -33,7 +33,7 @@ class TrainingConfig(BaseModel):
     beta2: float = 0.999
     eps: float = 1e-8
     seed: int = 42
-    device: str = "mps"
+    device: str = "cuda"
     batch_size: int = 4
     resume_path: str | None = None
     epochs: int
@@ -41,8 +41,8 @@ class TrainingConfig(BaseModel):
     log_interval: int = 5
     validate_and_save_interval: int = 10
     validation_epochs: int = 2
-    total_tokens: int = 40_960_000
-
+    total_train_tokens: int = 40_960_000
+    total_validation_tokens: int = 20_960_000
 
 @torch.inference_mode()
 def validate(
@@ -66,12 +66,15 @@ def validate(
         leave=False,
         dynamic_ncols=True,
     )
+    steps_per_epoch = args.total_validation_tokens // (
+        args.batch_size * args.context_length
+    )
 
     for epoch in val_epochs:
         epoch_loss = 0.0
 
         val_steps = tqdm(
-            range(args.validation_steps_per_epoch),
+            range(steps_per_epoch),
             desc=f"Epoch {epoch + 1}/{args.validation_epochs}",
             leave=False,
             dynamic_ncols=True,
@@ -99,7 +102,7 @@ def validate(
                 avg_loss=f"{epoch_loss / (step + 1):.4f}",
             )
 
-        epoch_avg_loss = epoch_loss / args.validation_steps_per_epoch
+        epoch_avg_loss = epoch_loss / steps_per_epoch
 
         val_epochs.set_postfix(
             epoch_loss=f"{epoch_avg_loss:.4f}",
@@ -144,7 +147,7 @@ def train(args: TrainingConfig):
 
     global_step = 0
 
-    steps_per_epoch = args.total_tokens // (
+    steps_per_epoch = args.total_train_tokens // (
         args.batch_size * args.context_length
     )
 
@@ -165,7 +168,7 @@ def train(args: TrainingConfig):
 
     best_validation_loss = float("inf")
 
-    with wandb.init(project=project) as run:
+    with wandb.init(project=project, config=args.model_dump()) as run:
 
         epoch_bar = tqdm(
             range(start_epoch, args.epochs),
@@ -239,9 +242,9 @@ def train(args: TrainingConfig):
                 # W&B logging
                 if global_step % args.log_interval == 0:
                     run.log({
-                        "train/loss": loss_value,
-                        "train/learning_rate": lr,
-                        "train/grad_norm": (
+                        "loss": loss_value,
+                        "learning_rate": lr,
+                        "grad_norm": (
                             grad_norm.item()
                             if isinstance(grad_norm, torch.Tensor)
                             else grad_norm
@@ -303,6 +306,12 @@ def train(args: TrainingConfig):
                 train_loss=f"{epoch_loss:.4f}",
                 best_val_loss=f"{best_validation_loss:.4f}",
             )
+    save_checkpoint(
+        model,
+        optimiser,
+        global_step,
+        "transformer_assignment_1_final.pt",
+    )
 
 
 if __name__ == "__main__":
@@ -314,14 +323,15 @@ if __name__ == "__main__":
         rope_theta=10000,
         num_heads=16,
         num_layers=4,
-        validate_and_save_interval=500,
+        validate_and_save_interval=1800,
+        validation_epochs=1,
         lr_max=3e-4,
         lr_min=3e-5,
-        lr_warmup=500,
+        lr_warmup=1000,
         batch_size=32,
         data_path="data/tinystories-train.bin",
-        validation_data_path="data/tinystories-valid.bin",
-        epochs=10,
+        validation_data_path="data/TinyStories-valid.bin",
+        epochs=5,
     )
 
     train(args)
